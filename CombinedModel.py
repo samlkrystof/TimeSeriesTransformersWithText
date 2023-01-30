@@ -215,3 +215,22 @@ class CombinedModel(nn.Module):
         self.text_tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         self.projection = nn.Linear(2 * size, num_classes, **kwargs)
+
+    def forward(self, text: List[str], time_series: torch.Tensor) -> torch.Tensor:
+        # if some text is empty, we need to replace it with something
+        #todo: consult this is the best way to do it
+        text = [t if t else "" for t in text]
+        tokenized_text = self.text_tokenizer(text, return_tensors="pt", padding=True, truncation=True)
+
+        text_output = self.text_transformer(**tokenized_text)
+        text_output = text_output.last_hidden_state
+
+        time_series_output = self.time_series_transformer(time_series, time_series)
+        combined_output = torch.cat([text_output, time_series_output], dim=1)
+        output = self.projection(combined_output)
+
+        return output
+
+
+
+
