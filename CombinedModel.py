@@ -196,3 +196,22 @@ class Transformer(nn.Module):
         decoder_y = self.decoder(encoder_y, pos_encoded_decoder)
         output = self.projection(decoder_y)
         return output
+
+class CombinedModel(nn.Module):
+    def __init__(self, model_name: str, num_encoder_blocks: int, num_decoder_blocks: int, embedding_dim: int, heads: int,
+                 feedforward_dim: int, dropout: float, max_length: int, num_classes: int, activation: str = "relu",
+                 **kwargs):
+        super(CombinedModel, self).__init__()
+
+        self.text_config = AutoConfig.from_pretrained(model_name, output_attentions=True, output_hidden_states=True)
+        size = self.text_config.hidden_size
+        self.time_series_transformer = Transformer(num_encoder_blocks, num_decoder_blocks, embedding_dim, heads,
+                                                   feedforward_dim, dropout, max_length, size, activation,
+        **kwargs)
+
+
+        self.text_transformer = AutoModel.from_pretrained(model_name, config=self.text_config)
+
+        self.text_tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+        self.projection = nn.Linear(2 * size, num_classes, **kwargs)
